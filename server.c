@@ -411,7 +411,9 @@ void tick_simulation(void) {
 				player->position, projectile->position);
 			if (distance < PLAYER_RADIUS) {
 				Player *shooter = player_by_id(projectile->shooter_id);
-				if (shooter != NULL)
+				if (shooter == player)
+					shooter->score--;
+				else if (shooter != NULL)
 					shooter->score++;
 
 				player_dies = true;
