@@ -466,12 +466,11 @@ void on_player_input_packet(struct sockaddr_storage address,
 	if (player == NULL) {
 		add_player(address);
 		player = vec_get(&players, players.n_elems - 1);
-		player->input_sequence_num = packet->sequence_num;
+	} else {
+		// Ignore stale input.
+		if (packet->sequence_num < player->input_sequence_num)
+			return;
 	}
-
-	// Ignore stale input.
-	if (packet->sequence_num < player->input_sequence_num)
-		return;
 
 	player->input = packet->input;
 	player->input_sequence_num = packet->sequence_num;
@@ -644,10 +643,10 @@ void main_loop(int handle) {
 
 		// Self-adjusting sleep that makes the loop contents execute every TICK_INTERVAL seconds.
 		Cptime this_iter_time = cptime_time();
-		double last_iter_interval =
+		double time_since_last_iter =
 			cptime_elapsed(&last_iter_time, &this_iter_time);
 		last_iter_time = this_iter_time;
-		sleep_time += tick_interval - last_iter_interval;
+		sleep_time += tick_interval - time_since_last_iter;
 		if (sleep_time > 0)
 			cptime_sleep(sleep_time);
 	}
