@@ -2,7 +2,7 @@ This is the server for very simple multiplayer space shooter game.
 
 Players can shoot, rotate and accelerate forwards and backwards. The objective of the game is to score the most points by shooting down other players' spaceships.
 
-The game world is toroidal, i.e. everything wraps around the edges. There is a speed limit that projectiles move at and players can get arbitrarily close to (this is somewhat similar to relativistic physics). Projectiles have a finite lifetime. Physical constants are defined at the top of `server.c`.
+The game world is toroidal, i.e. everything wraps around the edges. There is a speed limit that projectiles move at and players can get arbitrarily close to (this is somewhat similar to relativistic physics). Projectiles have a finite lifetime. Physical constants are defined at the top of `src/server.c`.
 
 ## License
 
