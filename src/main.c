@@ -1,6 +1,3 @@
-// When compiling, use "--std=c99 -lm".
-
-#define _POSIX_C_SOURCE 199309L // To get modern time-related functions.
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>

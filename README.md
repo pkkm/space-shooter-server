@@ -4,6 +4,17 @@ Players can shoot, rotate and accelerate forwards and backwards. The objective o
 
 The game world is toroidal, i.e. everything wraps around the edges. There is a speed limit that projectiles move at and players can get arbitrarily close to (this is somewhat similar to relativistic physics). Projectiles have a finite lifetime. Physical constants are defined at the top of `src/server.c`.
 
+## Usage
+
+- `make` \
+  Build the server in the `build` directory (requires Make and CMake).
+
+- `make run` \
+  Run the server.
+
+- `make clean` \
+  Delete the `build` directory.
+
 ## Client
 
 The client was written mostly by my friends, who decided not to publish it yet. Here's a screenshot:
