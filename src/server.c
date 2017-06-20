@@ -15,7 +15,7 @@
 #include "cpsock.h"
 #include "cptime.h"
 #include "serialization.h"
-#include "vec.h"
+#include "vector.h"
 #include "color.h"
 #include "vec2f.h"
 
@@ -88,9 +88,9 @@ const int PROJECTILE_LIFETIME = 1.5 * FPS;
 const int EXPLOSION_LIFETIME = 5 * FPS;
 const int PLAYER_RESPAWN_DELAY = 1 * FPS;
 
-Vec players;
-Vec projectiles;
-Vec explosions;
+Vector players;
+Vector projectiles;
+Vector explosions;
 
 int curr_tick = 0;
 SPlayerId next_player_id = 0;
@@ -111,7 +111,7 @@ float normalize_angle(float angle) {
 
 Player *player_by_id(SPlayerId id) {
 	for (size_t i_player = 0; i_player < players.n_elems; i_player++) {
-		Player *player = vec_get(&players, i_player);
+		Player *player = vector_get(&players, i_player);
 		if (player->id == id)
 			return player;
 	}
@@ -137,7 +137,7 @@ Vec2f find_spacious_position() {
 		curr_distance = fmin(curr_distance, LEVEL_SIZE.y - curr_position.y);
 
 		for (size_t i_player = 0; i_player < players.n_elems; i_player++) {
-			Player *player = vec_get(&players, i_player);
+			Player *player = vector_get(&players, i_player);
 			if (player->alive) {
 				curr_distance = fmin(
 					curr_distance,
@@ -147,7 +147,7 @@ Vec2f find_spacious_position() {
 
 		for (size_t i_projectile = 0; i_projectile < projectiles.n_elems;
 		     i_projectile++) {
-			Projectile *projectile = vec_get(&projectiles, i_projectile);
+			Projectile *projectile = vector_get(&projectiles, i_projectile);
 			curr_distance = fmin(
 				curr_distance,
 				vec2f_distance(curr_position, projectile->position));
@@ -185,7 +185,7 @@ Color next_player_color(void) {
 
 		bool color_used = false;
 		for (size_t i_player = 0; i_player < players.n_elems; i_player++) {
-			Player *player = vec_get(&players, i_player);
+			Player *player = vector_get(&players, i_player);
 			if (color_equal(player->color, color)) {
 				color_used = true;
 				break;
@@ -213,7 +213,7 @@ void add_player(struct sockaddr_storage address) {
 	new_player.score = 0;
 	new_player.color = next_player_color();
 	player_spawn(&new_player);
-	vec_push(&players, &new_player);
+	vector_push(&players, &new_player);
 }
 
 void player_shoot(Player *player) {
@@ -229,7 +229,7 @@ void player_shoot(Player *player) {
 	projectile.heading = player->heading;
 	projectile.velocity = vec2f_from_polar(
 		projectile.heading, PROJECTILE_SPEED);
-	vec_push(&projectiles, &projectile);
+	vector_push(&projectiles, &projectile);
 }
 
 void player_die(Player *player) {
@@ -239,7 +239,7 @@ void player_die(Player *player) {
 	Explosion new_explosion;
 	new_explosion.position = player->position;
 	new_explosion.creation_tick = curr_tick;
-	vec_push(&explosions, &new_explosion);
+	vector_push(&explosions, &new_explosion);
 }
 
 void tick_simulation(void) {
@@ -247,16 +247,16 @@ void tick_simulation(void) {
 
 	// Tick explosions (i.e. delete the ones whose lifetime has elapsed).
 	for (size_t i_explosion = 0; i_explosion < explosions.n_elems;) {
-		Explosion *explosion = vec_get(&explosions, i_explosion);
+		Explosion *explosion = vector_get(&explosions, i_explosion);
 		if (curr_tick - explosion->creation_tick > EXPLOSION_LIFETIME)
-			vec_delete(&explosions, i_explosion);
+			vector_delete(&explosions, i_explosion);
 		else
 			i_explosion++;
 	}
 
 	// Tick players.
 	for (size_t i_player = 0; i_player < players.n_elems; i_player++) {
-		Player *player = vec_get(&players, i_player);
+		Player *player = vector_get(&players, i_player);
 
 		if (!player->alive) {
 			player->ticks_until_respawn--;
@@ -309,7 +309,7 @@ void tick_simulation(void) {
 
 	// Tick projectiles.
 	for (size_t i_projectile = 0; i_projectile < projectiles.n_elems;) {
-		Projectile *projectile = vec_get(&projectiles, i_projectile);
+		Projectile *projectile = vector_get(&projectiles, i_projectile);
 
 		// Position.
 		projectile->position = vec2f_wrap_position(
@@ -317,14 +317,14 @@ void tick_simulation(void) {
 
 		// Delete the projectile if its lifetime has elapsed.
 		if (curr_tick - projectile->creation_tick > PROJECTILE_LIFETIME)
-			vec_delete(&projectiles, i_projectile);
+			vector_delete(&projectiles, i_projectile);
 		else
 			i_projectile++;
 	}
 
 	// Collision detection.
 	for (size_t i_player = 0; i_player < players.n_elems; i_player++) {
-		Player *player = vec_get(&players, i_player);
+		Player *player = vector_get(&players, i_player);
 		if (!player->alive)
 			continue;
 
@@ -332,7 +332,7 @@ void tick_simulation(void) {
 
 		// Collisions with other players.
 		for (size_t i_other = i_player + 1; i_other < players.n_elems; i_other++) {
-			Player *other = vec_get(&players, i_other);
+			Player *other = vector_get(&players, i_other);
 			if (!other->alive)
 				continue;
 
@@ -345,7 +345,7 @@ void tick_simulation(void) {
 
 		// Collisions with projectiles.
 		for (size_t i_projectile = 0; i_projectile < projectiles.n_elems;) {
-			Projectile *projectile = vec_get(&projectiles, i_projectile);
+			Projectile *projectile = vector_get(&projectiles, i_projectile);
 
 			float distance = vec2f_distance(
 				player->position, projectile->position);
@@ -357,7 +357,7 @@ void tick_simulation(void) {
 					shooter->score++;
 
 				player_dies = true;
-				vec_delete(&projectiles, i_projectile);
+				vector_delete(&projectiles, i_projectile);
 			} else {
 				i_projectile++;
 			}
@@ -375,7 +375,7 @@ void clean_up_disconnected_players(void) {
 	Cptime time = cptime_time();
 
 	for (size_t i_player = 0; i_player < players.n_elems;) {
-		Player *player = vec_get(&players, i_player);
+		Player *player = vector_get(&players, i_player);
 		if (cptime_elapsed(&player->last_input_time, &time) > PLAYER_TIMEOUT) {
 			// Log disconnection event.
 			char addr_str[CPSOCK_IP_TO_STRING_LEN];
@@ -384,7 +384,7 @@ void clean_up_disconnected_players(void) {
 			printf("Player disconnected: %s, port %d.\n", addr_str,
 			       cpsock_ip_port((struct sockaddr *) &player->address));
 
-			vec_delete(&players, i_player);
+			vector_delete(&players, i_player);
 		} else {
 			i_player++;
 		}
@@ -395,7 +395,7 @@ void on_player_input_packet(struct sockaddr_storage address,
                             SPlayerInputPacket *packet) {
 	Player *player = NULL;
 	for (size_t i_player = 0; i_player < players.n_elems; i_player++) {
-		Player *this_player = vec_get(&players, i_player);
+		Player *this_player = vector_get(&players, i_player);
 		if (cpsock_ip_equal((struct sockaddr *) &this_player->address,
 		                    (struct sockaddr *) &address)) {
 			player = this_player;
@@ -405,7 +405,7 @@ void on_player_input_packet(struct sockaddr_storage address,
 
 	if (player == NULL) {
 		add_player(address);
-		player = vec_get(&players, players.n_elems - 1);
+		player = vector_get(&players, players.n_elems - 1);
 	} else {
 		// Ignore stale input.
 		if (packet->sequence_num < player->input_sequence_num)
@@ -465,7 +465,7 @@ void receive_packets(int handle) {
 }
 
 void send_sim_tick_packet(int handle, int i_dest_player) {
-	Player *dest_player = vec_get(&players, i_dest_player);
+	Player *dest_player = vector_get(&players, i_dest_player);
 
 	size_t packet_size =
 		sizeof(SPacketHeader) +
@@ -513,7 +513,7 @@ void send_sim_tick_packet(int handle, int i_dest_player) {
 	// Players.
 	s_array_init(players_array, packet_end, players.n_elems);
 	for (size_t i_player = 0; i_player < players.n_elems; i_player++) {
-		Player *player = vec_get(&players, i_player);
+		Player *player = vector_get(&players, i_player);
 		SPlayer *s_player = (SPlayer *) packet_end;
 		packet_end += sizeof(*s_player);
 		s_player->id = player->id;
@@ -529,7 +529,7 @@ void send_sim_tick_packet(int handle, int i_dest_player) {
 	// Explosions.
 	s_array_init(explosions_array, packet_end, explosions.n_elems);
 	for (size_t i_expl = 0; i_expl < explosions.n_elems; i_expl++) {
-		Explosion *explosion = vec_get(&explosions, i_expl);
+		Explosion *explosion = vector_get(&explosions, i_expl);
 		SExplosion *s_explosion = (SExplosion *) packet_end;
 		packet_end += sizeof(*s_explosion);
 		s_explosion->position = explosion->position;
@@ -540,7 +540,7 @@ void send_sim_tick_packet(int handle, int i_dest_player) {
 	// Projectiles.
 	s_array_init(projectiles_array, packet_end, projectiles.n_elems);
 	for (size_t i_proj = 0; i_proj < projectiles.n_elems; i_proj++) {
-		Projectile *projectile = vec_get(&projectiles, i_proj);
+		Projectile *projectile = vector_get(&projectiles, i_proj);
 		SProjectile *s_projectile = (SProjectile *) packet_end;
 		packet_end += sizeof(*s_projectile);
 		s_projectile->position = projectile->position;
@@ -566,9 +566,9 @@ void send_sim_tick_packet(int handle, int i_dest_player) {
 /// Main.
 
 void main_loop(int handle) {
-	vec_init(&players, sizeof(Player));
-	vec_init(&explosions, sizeof(Explosion));
-	vec_init(&projectiles, sizeof(Projectile));
+	vector_init(&players, sizeof(Player));
+	vector_init(&explosions, sizeof(Explosion));
+	vector_init(&projectiles, sizeof(Projectile));
 
 	const double tick_interval = 1.0 / FPS;
 	double sleep_time = 0;
