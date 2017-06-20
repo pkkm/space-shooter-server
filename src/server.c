@@ -17,9 +17,9 @@
 #include "serialization.h"
 #include "vec.h"
 #include "color.h"
+#include "vec2f.h"
 
 typedef SVectorInt VectorInt;
-typedef SVectorFloat VectorFloat;
 typedef SPlayerId PlayerId;
 typedef SPlayerInput PlayerInput;
 typedef SSequenceNum SequenceNum;
@@ -35,9 +35,9 @@ typedef struct Player {
 	bool alive;
 	int ticks_until_respawn;
 
-	VectorFloat position;
+	Vec2f position;
 	float heading;
-	VectorFloat velocity;
+	Vec2f velocity;
 	int last_shot_tick;
 
 	int score;
@@ -45,15 +45,15 @@ typedef struct Player {
 } Player;
 
 typedef struct Projectile {
-	VectorFloat position;
+	Vec2f position;
 	float heading;
-	VectorFloat velocity;
+	Vec2f velocity;
 	SPlayerId shooter_id;
 	int creation_tick;
 } Projectile;
 
 typedef struct Explosion {
-	VectorFloat position;
+	Vec2f position;
 	int creation_tick;
 } Explosion;
 
@@ -106,68 +106,6 @@ float normalize_angle(float angle) {
 	return result;
 }
 
-VectorFloat vector_from_polar(float angle, float length) {
-	VectorFloat result;
-	result.x = cos(angle) * length;
-	result.y = -sin(angle) * length;
-	return result;
-}
-
-VectorFloat vector_scale(VectorFloat vector, float multiplier) {
-	VectorFloat result;
-	result.x = vector.x * multiplier;
-	result.y = vector.y * multiplier;
-	return result;
-}
-
-VectorFloat vector_add(VectorFloat a, VectorFloat b) {
-	VectorFloat result;
-	result.x = a.x + b.x;
-	result.y = a.y + b.y;
-	return result;
-}
-
-VectorFloat vector_subtract(VectorFloat a, VectorFloat b) {
-	VectorFloat result;
-	result.x = a.x - b.x;
-	result.y = a.y - b.y;
-	return result;
-}
-
-float vector_dot(VectorFloat a, VectorFloat b) {
-	return a.x * b.x + a.y * b.y;
-}
-
-float vector_length(VectorFloat vector) {
-	return sqrt(vector_dot(vector, vector));
-}
-
-float vector_distance(VectorFloat a, VectorFloat b) {
-	return vector_length(vector_subtract(a, b));
-}
-
-VectorFloat vector_velocity_add(VectorFloat u, VectorFloat v) {
-	// Pseudo-relativistic velocity addition (so that players don't accelerate to ridiculous speeds).
-	float sqr_limit = pow(SPEED_LIMIT, 2);
-	return vector_scale(
-		vector_add(u, v),
-		sqr_limit / (sqr_limit + fmax(0, vector_dot(u, v))));
-}
-
-VectorFloat vector_wrap_position(VectorFloat position) {
-	if (position.x < 0)
-		position.x += LEVEL_SIZE.x;
-	else if (position.x > LEVEL_SIZE.x)
-		position.x -= LEVEL_SIZE.x;
-
-	if (position.y < 0)
-		position.y += LEVEL_SIZE.y;
-	else if (position.y > LEVEL_SIZE.y)
-		position.y -= LEVEL_SIZE.y;
-
-	return position;
-}
-
 
 /// Physics and other game logic.
 
@@ -181,13 +119,13 @@ Player *player_by_id(SPlayerId id) {
 	return NULL;
 }
 
-VectorFloat find_spacious_position() {
+Vec2f find_spacious_position() {
 	// Return a position that is approximately the farthest away from screen edges and collidable objects.
 
 	static const float STEP_SIZE = 20;
-	VectorFloat curr_position = { STEP_SIZE, STEP_SIZE };
+	Vec2f curr_position = { STEP_SIZE, STEP_SIZE };
 
-	VectorFloat best_position;
+	Vec2f best_position;
 	float best_distance = 0;
 
 	do {
@@ -203,7 +141,7 @@ VectorFloat find_spacious_position() {
 			if (player->alive) {
 				curr_distance = fmin(
 					curr_distance,
-					vector_distance(curr_position, player->position));
+					vec2f_distance(curr_position, player->position));
 			}
 		}
 
@@ -212,7 +150,7 @@ VectorFloat find_spacious_position() {
 			Projectile *projectile = vec_get(&projectiles, i_projectile);
 			curr_distance = fmin(
 				curr_distance,
-				vector_distance(curr_position, projectile->position));
+				vec2f_distance(curr_position, projectile->position));
 		}
 
 		if (curr_distance > best_distance) {
@@ -284,11 +222,12 @@ void player_shoot(Player *player) {
 	Projectile projectile;
 	projectile.shooter_id = player->id;
 	projectile.creation_tick = curr_tick;
-	projectile.position = vector_wrap_position(
-		vector_add(player->position,
-		           vector_from_polar(player->heading, PLAYER_RADIUS)));
+	projectile.position = vec2f_wrap_position(
+		vec2f_add(player->position,
+		          vec2f_from_polar(player->heading, PLAYER_RADIUS)),
+		LEVEL_SIZE);
 	projectile.heading = player->heading;
-	projectile.velocity = vector_from_polar(
+	projectile.velocity = vec2f_from_polar(
 		projectile.heading, PROJECTILE_SPEED);
 	vec_push(&projectiles, &projectile);
 }
@@ -352,13 +291,14 @@ void tick_simulation(void) {
 			acceleration = 0;
 			break;
 		}
-		player->velocity = vector_velocity_add(
+		player->velocity = vec2f_velocity_add(
 			player->velocity,
-			vector_from_polar(player->heading, acceleration));
+			vec2f_from_polar(player->heading, acceleration),
+			SPEED_LIMIT);
 
 		// Position.
-		player->position = vector_wrap_position(
-			vector_add(player->position, player->velocity));
+		player->position = vec2f_wrap_position(
+			vec2f_add(player->position, player->velocity), LEVEL_SIZE);
 
 		// Shooting.
 		if (player->input.shoot
@@ -372,8 +312,8 @@ void tick_simulation(void) {
 		Projectile *projectile = vec_get(&projectiles, i_projectile);
 
 		// Position.
-		projectile->position = vector_wrap_position(
-			vector_add(projectile->position, projectile->velocity));
+		projectile->position = vec2f_wrap_position(
+			vec2f_add(projectile->position, projectile->velocity), LEVEL_SIZE);
 
 		// Delete the projectile if its lifetime has elapsed.
 		if (curr_tick - projectile->creation_tick > PROJECTILE_LIFETIME)
@@ -396,7 +336,7 @@ void tick_simulation(void) {
 			if (!other->alive)
 				continue;
 
-			float distance = vector_distance(player->position, other->position);
+			float distance = vec2f_distance(player->position, other->position);
 			if (distance < PLAYER_RADIUS * 2) {
 				player_dies = true;
 				player_die(other);
@@ -407,7 +347,7 @@ void tick_simulation(void) {
 		for (size_t i_projectile = 0; i_projectile < projectiles.n_elems;) {
 			Projectile *projectile = vec_get(&projectiles, i_projectile);
 
-			float distance = vector_distance(
+			float distance = vec2f_distance(
 				player->position, projectile->position);
 			if (distance < PLAYER_RADIUS) {
 				Player *shooter = player_by_id(projectile->shooter_id);
