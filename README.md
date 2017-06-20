@@ -12,7 +12,7 @@ The client was written mostly by my friends, who decided not to publish it yet. 
 
 ## License
 
-    Copyright 2016 Paweł Kraśnicki.
+    Copyright 2016, 2017 Paweł Kraśnicki.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
